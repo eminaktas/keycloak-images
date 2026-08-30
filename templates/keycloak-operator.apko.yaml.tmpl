@@ -1,0 +1,57 @@
+contents:
+  repositories:
+    - "@local <<.LocalRoot>>/packages"
+    - https://packages.wolfi.dev/os
+  keyring:
+    - <<.LocalRoot>>/melange.rsa.pub
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  packages:
+    - busybox
+    - keycloak-operator-compat@local
+    - openjdk-<<.JavaVersion>>-default-jvm
+
+accounts:
+  users:
+    - username: keycloak
+      uid: 1000
+      gid: 0
+  run-as: "1000"
+
+environment:
+  LANG: en_US.UTF-8
+  JAVA_HOME: /usr/lib/jvm/java-<<.JavaVersion>>-openjdk
+  PATH: /usr/lib/jvm/java-<<.JavaVersion>>-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  RELATED_IMAGE_KEYCLOAK: <<.ServerReference>>
+
+paths:
+  - path: /opt/keycloak
+    type: directory
+    permissions: 0o775
+    uid: 1000
+    gid: 0
+    recursive: true
+
+work-dir: /opt/keycloak
+
+entrypoint:
+  command: java
+
+cmd: >-
+  -Djava.util.logging.manager=org.jboss.logmanager.LogManager
+  -jar
+  quarkus-run.jar
+
+stop-signal: SIGTERM
+
+annotations:
+  org.opencontainers.image.title: Keycloak Operator
+  org.opencontainers.image.description: Kubernetes Operator for Keycloak
+  org.opencontainers.image.url: https://www.keycloak.org/
+  org.opencontainers.image.documentation: https://www.keycloak.org/operator/installation
+  org.opencontainers.image.source: <<.SourceRepository>>
+  org.opencontainers.image.version: "<<.Version>>"
+  org.opencontainers.image.licenses: Apache-2.0
+  org.opencontainers.image.revision: <<.UpstreamCommit>>
+  dev.keycloak.images.server: <<.ServerReference>>
+  io.k8s.display-name: Keycloak Operator
+  io.k8s.description: Keycloak Operator Image

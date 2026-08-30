@@ -1,0 +1,4 @@
+packages:
+  - groupId: io.netty
+    artifactId: netty-codec-http
+    version: 4.1.137.Final

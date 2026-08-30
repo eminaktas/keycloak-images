@@ -1,0 +1,9 @@
+/_output/
+/packages/
+/*.tar
+/*.rsa
+/*.key
+/*.spdx.json
+/.idea/
+/.vscode/
+.DS_Store

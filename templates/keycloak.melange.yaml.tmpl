@@ -1,0 +1,105 @@
+package:
+  name: keycloak-compat
+  version: "<<.Version>>"
+  epoch: <<.Revision>>
+  description: Open Source Identity and Access Management For Modern Applications and Services
+  copyright:
+    - license: Apache-2.0
+  dependencies:
+    provides:
+      - keycloak=${{package.full-version}}
+    runtime:
+      - bash
+      - merged-usrsbin
+      - openjdk-${{vars.java-version}}-default-jvm
+      - wolfi-baselayout
+
+vars:
+  java-version: <<.JavaVersion>>
+
+environment:
+  contents:
+    repositories:
+      - https://packages.wolfi.dev/os
+    keyring:
+      - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    packages:
+      - bash
+      - build-base
+      - busybox
+      - ca-certificates-bundle
+      - gcc-13-default
+      - openjdk-${{vars.java-version}}-default-jdk
+      - maven
+      - nodejs-24
+      - pnpm
+<<.OmnibumpEnvironmentPackage>>
+      - wolfi-base
+      - wolfi-baselayout
+  environment:
+    LANG: en_US.UTF-8
+    JAVA_HOME: /usr/lib/jvm/java-${{vars.java-version}}-openjdk
+
+pipeline:
+  - uses: git-checkout
+    with:
+      repository: https://github.com/keycloak/keycloak
+      tag: ${{package.version}}
+      expected-commit: <<.UpstreamCommit>>
+
+<<.PatchPipeline>>
+<<.OmnibumpPipeline>>
+
+  - name: Build Keycloak
+    runs: |
+      ./mvnw clean install \
+        -DskipTests \
+        -DskipTestsuite \
+        -DskipExamples \
+        -DskipITs \
+        -DskipProtoLock=true \
+        -q
+
+  - name: Prepare Keycloak distribution
+    runs: |
+      mkdir -p "${{targets.destdir}}/opt/keycloak/data"
+      unzip -q quarkus/dist/target/keycloak-*.zip -d "${{targets.destdir}}/opt"
+      mv "${{targets.destdir}}/opt/keycloak-"*/* "${{targets.destdir}}/opt/keycloak/"
+      rmdir "${{targets.destdir}}/opt/keycloak-"*
+      chmod -R g+rwX "${{targets.destdir}}/opt/keycloak"
+      chown -R 1000:0 "${{targets.destdir}}/opt/keycloak"
+
+subpackages:
+  - name: keycloak-operator-compat
+    description: Kubernetes Operator for Keycloak
+    dependencies:
+      provides:
+        - keycloak-operator=${{package.full-version}}
+      runtime:
+        - openjdk-${{vars.java-version}}-default-jvm
+        - wolfi-baselayout
+    pipeline:
+      - name: Build Operator
+        runs: |
+          cd operator
+          ../mvnw clean package -q
+
+      - name: Prepare Operator distribution
+        runs: |
+          mkdir -p "${{targets.subpkgdir}}/opt/keycloak"
+          cp -R operator/target/quarkus-app/. "${{targets.subpkgdir}}/opt/keycloak/"
+          chmod -R g+rwX "${{targets.subpkgdir}}/opt/keycloak"
+          chown -R 1000:0 "${{targets.subpkgdir}}/opt/keycloak"
+    test:
+      pipeline:
+        - runs: |
+            test -f /opt/keycloak/quarkus-run.jar
+            test -d /opt/keycloak/lib
+            java -version
+
+test:
+  pipeline:
+    - runs: |
+        test -x /opt/keycloak/bin/kc.sh
+        test -d /opt/keycloak/data
+        /opt/keycloak/bin/kc.sh --version | grep -F "${{package.version}}"

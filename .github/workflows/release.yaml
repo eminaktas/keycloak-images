@@ -1,0 +1,242 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - config/versions.json
+      - templates/**
+      - bump/**
+      - hack/matrix.sh
+      - hack/render.sh
+      - .github/workflows/release.yaml
+      - cosign.pub
+      - melange.rsa.pub
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: release-keycloak-images
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Select active tracks
+    runs-on: ubuntu-24.04
+    outputs:
+      track_matrix: ${{ steps.track_matrix.outputs.value }}
+      package_matrix: ${{ steps.package_matrix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v6
+      - run: make validate
+      - id: track_matrix
+        run: echo "value=$(./hack/matrix.sh)" >> "$GITHUB_OUTPUT"
+      - id: package_matrix
+        run: echo "value=$(./hack/matrix.sh packages)" >> "$GITHUB_OUTPUT"
+
+  build-packages:
+    name: Build Keycloak ${{ matrix.track }} packages (${{ matrix.arch }})
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.prepare.outputs.package_matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Render definitions
+        shell: bash
+        run: |
+          ./hack/render.sh "${{ matrix.track }}"
+          source_date_epoch="$(git show -s --format=%ct HEAD)"
+          echo "SOURCE_DATE_EPOCH=$source_date_epoch" >> "$GITHUB_ENV"
+
+      - name: Prepare and validate APK signing key
+        shell: bash
+        env:
+          MELANGE_PRIVATE_KEY: ${{ secrets.MELANGE_PRIVATE_KEY }}
+        run: |
+          [[ -n "$MELANGE_PRIVATE_KEY" ]] || { echo "MELANGE_PRIVATE_KEY is not configured" >&2; exit 1; }
+
+          key_dir="${RUNNER_TEMP}/release-signing-keys"
+          mkdir -p "$key_dir"
+          umask 077
+          printf '%s' "$MELANGE_PRIVATE_KEY" > "$key_dir/melange.rsa"
+          openssl pkey -in "$key_dir/melange.rsa" -pubout 2>/dev/null | cmp - melange.rsa.pub
+          cp "$key_dir/melange.rsa" melange.rsa
+
+      - name: Build server and operator APKs
+        uses: chainguard-dev/actions/melange-build@v1.6.34
+        with:
+          archs: ${{ matrix.arch }}
+          config: _output/${{ matrix.track }}/keycloak.melange.yaml
+          source-dir: ${{ github.workspace }}/_output/${{ matrix.track }}
+          repository-path: ${{ github.workspace }}/_output/${{ matrix.track }}/packages
+          sign-with-own-key: true
+          signing-key-path: ${{ github.workspace }}/melange.rsa
+
+      - name: Preserve architecture repository
+        uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ matrix.track }}-${{ matrix.arch }}
+          path: _output/${{ matrix.track }}/packages/${{ matrix.arch }}
+          compression-level: 0
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 1
+
+  publish:
+    name: Publish Keycloak ${{ matrix.track }}
+    needs: [prepare, build-packages]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.prepare.outputs.track_matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Render definitions and tags
+        id: release
+        shell: bash
+        run: |
+          ./hack/render.sh "${{ matrix.track }}" "" /work
+          mkdir -p "_output/${{ matrix.track }}/sboms/server" "_output/${{ matrix.track }}/sboms/operator"
+          source_date_epoch="$(git show -s --format=%ct HEAD)"
+          echo "SOURCE_DATE_EPOCH=$source_date_epoch" >> "$GITHUB_ENV"
+          echo "source_date_epoch=$source_date_epoch" >> "$GITHUB_OUTPUT"
+          registry="$(jq -r '.registry' config/versions.json)"
+          immutable="${{ matrix.version }}-r${{ matrix.revision }}"
+          suffixes="$immutable ${{ matrix.version }} ${{ matrix.track }}"
+          if [[ "${{ matrix.latest }}" == "true" ]]; then suffixes="$suffixes latest"; fi
+          for component in keycloak keycloak-operator; do
+            tags=""
+            for suffix in $suffixes; do tags="$tags ${registry}/${component}:${suffix}"; done
+            echo "${component//-/_}_tags=${tags# }" >> "$GITHUB_OUTPUT"
+          done
+          echo "server_immutable=${registry}/keycloak:${immutable}" >> "$GITHUB_OUTPUT"
+          echo "operator_immutable=${registry}/keycloak-operator:${immutable}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Prepare and validate image signing key
+        shell: bash
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ""
+        run: |
+          [[ -n "$COSIGN_PRIVATE_KEY" ]] || { echo "COSIGN_PRIVATE_KEY is not configured" >&2; exit 1; }
+
+          key_dir="${RUNNER_TEMP}/release-signing-keys"
+          mkdir -p "$key_dir"
+          umask 077
+          printf '%s' "$COSIGN_PRIVATE_KEY" > "$key_dir/cosign.key"
+
+          cosign public-key --key "$key_dir/cosign.key" | cmp - cosign.pub
+
+          cp melange.rsa.pub "_output/${{ matrix.track }}/melange.rsa.pub"
+          echo "COSIGN_KEY=$key_dir/cosign.key" >> "$GITHUB_ENV"
+
+      - name: Restore x86_64 package repository
+        uses: actions/download-artifact@v8
+        with:
+          name: packages-${{ matrix.track }}-x86_64
+          path: _output/${{ matrix.track }}/packages/x86_64
+
+      - name: Restore aarch64 package repository
+        uses: actions/download-artifact@v8
+        with:
+          name: packages-${{ matrix.track }}-aarch64
+          path: _output/${{ matrix.track }}/packages/aarch64
+
+      - name: Publish server image
+        id: server
+        uses: chainguard-images/actions/apko-publish@v1.0.38
+        with:
+          archs: ${{ matrix.archs }}
+          config: _output/${{ matrix.track }}/keycloak.apko.yaml
+          tag: ${{ steps.release.outputs.keycloak_tags }}
+          automount-src: _output/${{ matrix.track }}/.
+          automount-dest: /work
+          sbom-path: _output/${{ matrix.track }}/sboms/server
+          source-date-epoch: ${{ steps.release.outputs.source_date_epoch }}
+
+      - name: Bind operator to published server digest
+        shell: bash
+        run: ./hack/render.sh "${{ matrix.track }}" "${{ steps.server.outputs.digest }}" /work
+
+      - name: Publish operator image
+        id: operator
+        uses: chainguard-images/actions/apko-publish@v1.0.38
+        with:
+          archs: ${{ matrix.archs }}
+          config: _output/${{ matrix.track }}/keycloak-operator.apko.yaml
+          tag: ${{ steps.release.outputs.keycloak_operator_tags }}
+          automount-src: _output/${{ matrix.track }}/.
+          automount-dest: /work
+          sbom-path: _output/${{ matrix.track }}/sboms/operator
+          source-date-epoch: ${{ steps.release.outputs.source_date_epoch }}
+
+      - name: Sign and verify image pair
+        shell: bash
+        env:
+          SERVER_DIGEST: ${{ steps.server.outputs.digest }}
+          OPERATOR_DIGEST: ${{ steps.operator.outputs.digest }}
+          COSIGN_PASSWORD: ""
+        run: |
+          verify_image() {
+            cosign verify --key cosign.pub "$1" >/dev/null 2>&1 ||
+              cosign verify --key cosign.pub --new-bundle-format=false "$1" >/dev/null 2>&1
+          }
+
+          for image in "$SERVER_DIGEST" "$OPERATOR_DIGEST"; do
+            if verify_image "$image"; then
+              echo "Already signed and verified: $image"
+              continue
+            fi
+
+            for attempt in 1 2 3; do
+              echo "Signing $image (attempt $attempt/3)..."
+              if cosign sign \
+                --yes \
+                --key "$COSIGN_KEY" \
+                --new-bundle-format=false \
+                --use-signing-config=false \
+                "$image"; then
+                break
+              fi
+
+              if verify_image "$image"; then
+                echo "Signature was published despite the command error: $image"
+                break
+              fi
+
+              if [[ "$attempt" == 3 ]]; then
+                echo "Could not sign image after 3 attempts: $image" >&2
+                exit 1
+              fi
+              sleep "$((attempt * 10))"
+            done
+
+            verify_image "$image" || { echo "Signature verification failed: $image" >&2; exit 1; }
+            echo "Signed and verified: $image"
+          done
+
+      - name: Smoke-test published server
+        shell: bash
+        run: |
+          docker pull "${{ steps.release.outputs.server_immutable }}"
+          ./hack/smoke-server.sh "${{ steps.release.outputs.server_immutable }}"

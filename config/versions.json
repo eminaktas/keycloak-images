@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "registry": "ghcr.io/eminaktas",
+  "sourceRepository": "https://github.com/eminaktas/keycloak-images",
+  "latestTrack": "26.7",
+  "architectures": [
+    "x86_64",
+    "aarch64"
+  ],
+  "streams": [
+    {
+      "track": "26.4",
+      "active": true,
+      "version": "26.4.15",
+      "resourcesVersion": "26.4.7",
+      "revision": 0,
+      "upstreamCommit": "6dae553ea5f3f11e67aecc98b9eba1dc0a7ecb46",
+      "javaVersion": 21
+    },
+    {
+      "track": "26.6",
+      "active": true,
+      "version": "26.6.6",
+      "resourcesVersion": "26.6.4",
+      "revision": 0,
+      "upstreamCommit": "85af03cdf8585a1f1cf27aa26565a0883bdcdf8d",
+      "javaVersion": 21
+    },
+    {
+      "track": "26.7",
+      "active": true,
+      "version": "26.7.2",
+      "resourcesVersion": "26.7.2",
+      "revision": 0,
+      "upstreamCommit": "289376b142480b4d600aca7acb1e4651862ed2a1",
+      "javaVersion": 21
+    }
+  ]
+}

@@ -1,0 +1,138 @@
+name: Build and test image pair
+description: Build the Keycloak server and operator
+
+inputs:
+  track:
+    description: Active Keycloak major.minor track
+    required: true
+  archs:
+    description: Melange/APKO architectures
+    required: false
+    default: x86_64
+
+runs:
+  using: composite
+  steps:
+    - name: Select architecture-specific image references
+      id: refs
+      shell: bash
+      run: |
+        case "${{ inputs.archs }}" in
+          x86_64) suffix=amd64 ;;
+          aarch64) suffix=arm64 ;;
+          *) echo "CI supports one architecture at a time" >&2; exit 2 ;;
+        esac
+        echo "server=keycloak-images/keycloak:ci-${{ inputs.track }}-${suffix}" >> "$GITHUB_OUTPUT"
+        echo "operator=keycloak-images/keycloak-operator:ci-${{ inputs.track }}-${suffix}" >> "$GITHUB_OUTPUT"
+
+    - name: Render definitions
+      shell: bash
+      run: ./hack/render.sh "${{ inputs.track }}" "${{ steps.refs.outputs.server }}" /work
+
+    - name: Build server and operator APKs
+      uses: chainguard-dev/actions/melange-build@v1.6.34
+      with:
+        archs: ${{ inputs.archs }}
+        config: _output/${{ inputs.track }}/keycloak.melange.yaml
+        source-dir: ${{ github.workspace }}/_output/${{ inputs.track }}
+        repository-path: ${{ github.workspace }}/_output/${{ inputs.track }}/packages
+        sign-with-temporary-key: true
+        signing-key-path: ${{ github.workspace }}/_output/${{ inputs.track }}/melange.rsa
+
+    - name: Build server image
+      uses: chainguard-images/actions/apko-build@v1.0.38
+      with:
+        archs: ${{ inputs.archs }}
+        config: _output/${{ inputs.track }}/keycloak.apko.yaml
+        tag: keycloak-images/keycloak:ci-${{ inputs.track }}
+        automount-src: _output/${{ inputs.track }}/.
+        automount-dest: /work
+
+    - name: Preserve server image
+      shell: bash
+      run: mv output.tar _output/${{ inputs.track }}/keycloak.tar
+
+    - name: Build operator image
+      uses: chainguard-images/actions/apko-build@v1.0.38
+      with:
+        archs: ${{ inputs.archs }}
+        config: _output/${{ inputs.track }}/keycloak-operator.apko.yaml
+        tag: keycloak-images/keycloak-operator:ci-${{ inputs.track }}
+        automount-src: _output/${{ inputs.track }}/.
+        automount-dest: /work
+
+    - name: Load images
+      id: images
+      shell: bash
+      run: |
+        docker load --input _output/${{ inputs.track }}/keycloak.tar
+        docker load --input output.tar
+        echo "server=${{ steps.refs.outputs.server }}" >> "$GITHUB_OUTPUT"
+        echo "operator=${{ steps.refs.outputs.operator }}" >> "$GITHUB_OUTPUT"
+
+    - name: Smoke-test server
+      shell: bash
+      run: ./hack/smoke-server.sh "${{ steps.images.outputs.server }}"
+
+    - name: Install Kind
+      uses: chainguard-dev/actions/setup-kind@v1.6.34
+
+    - name: Test operator/server pair
+      shell: bash
+      env:
+        KIND_CLUSTER_NAME: kind
+      run: |
+        resources_version="$(jq -r --arg track "${{ inputs.track }}" '.streams[] | select(.track == $track) | .resourcesVersion' config/versions.json)"
+        ./hack/test-pair.sh \
+          "${{ steps.images.outputs.server }}" \
+          "${{ steps.images.outputs.operator }}" \
+          "$resources_version"
+
+    - name: Scan server image
+      if: always() && steps.images.outcome == 'success'
+      uses: anchore/scan-action@v7
+      id: server-scan
+      with:
+        image: ${{ steps.images.outputs.server }}
+        fail-build: false
+        output-format: json
+        output-file: _output/${{ inputs.track }}/server-grype.json
+        by-cve: true
+
+    - name: Scan operator image
+      if: always() && steps.images.outcome == 'success'
+      uses: anchore/scan-action@v7
+      id: operator-scan
+      with:
+        image: ${{ steps.images.outputs.operator }}
+        fail-build: false
+        output-format: json
+        output-file: _output/${{ inputs.track }}/operator-grype.json
+        by-cve: true
+
+    - name: Generate Markdown report
+      id: vulnerability-report
+      if: always() && steps.server-scan.outcome == 'success' && steps.operator-scan.outcome == 'success'
+      shell: bash
+      env:
+        SERVER_REPORT: ${{ steps.server-scan.outputs.json }}
+        OPERATOR_REPORT: ${{ steps.operator-scan.outputs.json }}
+        SERVER_IMAGE: ${{ steps.images.outputs.server }}
+        OPERATOR_IMAGE: ${{ steps.images.outputs.operator }}
+      run: |
+        report="scan_results-${{ inputs.track }}.md"
+        jq --slurp --raw-output \
+          --arg track "${{ inputs.track }}" \
+          --arg server_image "$SERVER_IMAGE" \
+          --arg operator_image "$OPERATOR_IMAGE" \
+          --from-file hack/vulnerability-report.jq \
+          "$SERVER_REPORT" "$OPERATOR_REPORT" > "$report"
+        cat "$report" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Comment or update PR
+      if: github.event_name == 'pull_request' && steps.vulnerability-report.outcome == 'success'
+      continue-on-error: true
+      uses: thollander/actions-comment-pull-request@v3
+      with:
+        file-path: scan_results-${{ inputs.track }}.md
+        comment-tag: grype-${{ inputs.track }}

@@ -1,0 +1,58 @@
+contents:
+  repositories:
+    - "@local <<.LocalRoot>>/packages"
+    - https://packages.wolfi.dev/os
+  keyring:
+    - <<.LocalRoot>>/melange.rsa.pub
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  packages:
+    - bash
+    - busybox
+    - keycloak-compat@local
+    - openjdk-<<.JavaVersion>>-default-jvm
+
+accounts:
+  users:
+    - username: keycloak
+      uid: 1000
+      gid: 0
+  run-as: "1000"
+
+environment:
+  LANG: en_US.UTF-8
+  JAVA_HOME: /usr/lib/jvm/java-<<.JavaVersion>>-openjdk
+  KC_RUN_IN_CONTAINER: "true"
+  PATH: /opt/keycloak/bin:/usr/lib/jvm/java-<<.JavaVersion>>-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+paths:
+  - path: /opt/keycloak
+    type: directory
+    permissions: 0o775
+    uid: 1000
+    gid: 0
+    recursive: true
+  - path: /opt/keycloak/data
+    type: directory
+    permissions: 0o770
+    uid: 1000
+    gid: 0
+    recursive: true
+
+work-dir: /opt/keycloak
+
+entrypoint:
+  command: /opt/keycloak/bin/kc.sh
+
+stop-signal: SIGTERM
+
+annotations:
+  org.opencontainers.image.title: Keycloak Server
+  org.opencontainers.image.description: Open Source Identity and Access Management
+  org.opencontainers.image.url: https://www.keycloak.org/
+  org.opencontainers.image.documentation: https://www.keycloak.org/documentation
+  org.opencontainers.image.source: <<.SourceRepository>>
+  org.opencontainers.image.version: "<<.Version>>"
+  org.opencontainers.image.licenses: Apache-2.0
+  org.opencontainers.image.revision: <<.UpstreamCommit>>
+  io.k8s.display-name: Keycloak Server
+  io.k8s.description: Keycloak Server Image

@@ -1,0 +1,39 @@
+name: PR Test Build
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: presubmit-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Validate and select active tracks
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: make validate
+      - id: matrix
+        run: echo "value=$(./hack/matrix.sh)" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Keycloak ${{ matrix.track }} pair
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/build-pair
+        with:
+          track: ${{ matrix.track }}
+          archs: x86_64

@@ -17,15 +17,31 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
+      has_tracks: ${{ steps.matrix.outputs.has_tracks }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - run: make validate
       - id: matrix
-        run: echo "value=$(./hack/matrix.sh)" >> "$GITHUB_OUTPUT"
+        name: Select changed tracks
+        shell: bash
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          selected="$(./hack/select-tracks.sh presubmit "$BASE_REVISION")"
+          echo "Selected tracks: $selected"
+          echo "value=$(./hack/matrix.sh tracks "$selected")" >> "$GITHUB_OUTPUT"
+          if [[ "$(jq length <<<"$selected")" -gt 0 ]]; then
+            echo "has_tracks=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tracks=false" >> "$GITHUB_OUTPUT"
+          fi
 
   build:
     name: Keycloak ${{ matrix.track }} pair
     needs: prepare
+    if: needs.prepare.outputs.has_tracks == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:

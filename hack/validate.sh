@@ -39,6 +39,8 @@ jq -e '. as $catalog |
   )
 ' >/dev/null
 
+./tests/select-tracks.sh
+
 if grep -R -n --binary-files=without-match --include='*.yaml' '<<\.' _output; then
   echo "unrendered template value found" >&2
   exit 1

@@ -6,7 +6,7 @@ operator_image="${2:?usage: test-pair.sh <server-image> <operator-image> <resour
 resources_version="${3:?usage: test-pair.sh <server-image> <operator-image> <resources-version>}"
 cluster="${KIND_CLUSTER_NAME:-keycloak-images-$$}"
 delete_cluster="${KIND_DELETE_CLUSTER:-false}"
-kustomization="tests/namespace-scoped/kustomization.yaml"
+legacy_kustomization="tests/namespace-scoped/legacy-kustomization.yaml"
 
 for tool in docker git kind kubectl; do
   command -v "$tool" >/dev/null || {
@@ -16,6 +16,8 @@ for tool in docker git kind kubectl; do
 done
 
 temporary_directory="$(mktemp -d)"
+resources_repository="${temporary_directory}/keycloak-k8s-resources"
+resources_directory="${resources_repository}/kubernetes"
 
 diagnose_and_cleanup() {
   status=$?
@@ -33,6 +35,15 @@ diagnose_and_cleanup() {
 }
 trap diagnose_and_cleanup EXIT
 
+git clone --depth 1 --branch "$resources_version" --single-branch \
+  https://github.com/keycloak/keycloak-k8s-resources.git \
+  "$resources_repository"
+
+if [[ ! -f "${resources_directory}/kustomization.yml" && \
+      ! -f "${resources_directory}/kustomization.yaml" ]]; then
+  cp "$legacy_kustomization" "${resources_directory}/kustomization.yaml"
+fi
+
 if kind get clusters | grep -Fxq "$cluster"; then
   echo "using existing Kind cluster: $cluster"
 else
@@ -42,11 +53,9 @@ fi
 kind load docker-image --name "$cluster" "$server_image" "$operator_image"
 
 kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
-sed \
-  -e "s|?ref=[^[:space:]]*|?ref=${resources_version}|" \
-  -e "s|ghcr.io/eminaktas/keycloak-operator:latest|${operator_image}|" \
-  "$kustomization" > "${temporary_directory}/kustomization.yaml"
-kubectl apply -k "$temporary_directory"
+kubectl apply -k "$resources_directory"
+kubectl -n keycloak set image deployment/keycloak-operator keycloak-operator="$operator_image"
+kubectl -n keycloak set env deployment/keycloak-operator RELATED_IMAGE_KEYCLOAK-
 kubectl -n keycloak patch deployment keycloak-operator --type=strategic \
   -p '{"spec":{"template":{"spec":{"containers":[{"name":"keycloak-operator","imagePullPolicy":"IfNotPresent","env":[{"name":"KC_OPERATOR_KEYCLOAK_IMAGE_PULL_POLICY","value":"IfNotPresent"}]}]}}}}'
 kubectl -n keycloak rollout status deployment/keycloak-operator --timeout=5m
@@ -54,9 +63,7 @@ kubectl -n keycloak rollout status deployment/keycloak-operator --timeout=5m
 kubectl apply -f tests/kind/postgres.yaml
 kubectl -n keycloak rollout status statefulset/postgres-db --timeout=5m
 kubectl apply -f tests/kind/keycloak.yaml
-kubectl -n keycloak wait keycloak/test-kc \
-  --for='jsonpath={.status.conditions[?(@.type=="Ready")].status}=true' \
-  --timeout=10m
+kubectl -n keycloak wait --for=condition=Ready keycloak/test-kc --timeout=10m
 kubectl -n keycloak rollout status statefulset/test-kc --timeout=5m
 
 actual_image="$(kubectl -n keycloak get statefulset test-kc -o jsonpath='{.spec.template.spec.containers[0].image}')"

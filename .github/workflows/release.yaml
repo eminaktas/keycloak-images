@@ -2,6 +2,12 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      track:
+        description: Active Keycloak track to release, or all
+        required: true
+        default: all
+        type: string
   push:
     branches: [main]
     paths:
@@ -9,6 +15,7 @@ on:
       - templates/**
       - bump/**
       - hack/matrix.sh
+      - hack/select-tracks.sh
       - hack/render.sh
       - .github/workflows/release.yaml
       - cosign.pub
@@ -29,17 +36,45 @@ jobs:
     outputs:
       track_matrix: ${{ steps.track_matrix.outputs.value }}
       package_matrix: ${{ steps.package_matrix.outputs.value }}
+      has_tracks: ${{ steps.track_matrix.outputs.has_tracks }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - run: make validate
       - id: track_matrix
-        run: echo "value=$(./hack/matrix.sh)" >> "$GITHUB_OUTPUT"
+        name: Select release tracks
+        shell: bash
+        env:
+          BASE_REVISION: ${{ github.event.before }}
+          REQUESTED_TRACK: ${{ inputs.track }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "$REQUESTED_TRACK" == "all" ]]; then
+              selected="$(jq -c '[.streams[] | select(.active) | .track]' config/versions.json)"
+            else
+              selected="$(jq -cn --arg track "$REQUESTED_TRACK" '[$track]')"
+            fi
+          else
+            selected="$(./hack/select-tracks.sh release "$BASE_REVISION")"
+          fi
+          echo "Selected tracks: $selected"
+          echo "value=$(./hack/matrix.sh tracks "$selected")" >> "$GITHUB_OUTPUT"
+          echo "selected=$selected" >> "$GITHUB_OUTPUT"
+          if [[ "$(jq length <<<"$selected")" -gt 0 ]]; then
+            echo "has_tracks=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tracks=false" >> "$GITHUB_OUTPUT"
+          fi
       - id: package_matrix
-        run: echo "value=$(./hack/matrix.sh packages)" >> "$GITHUB_OUTPUT"
+        env:
+          SELECTED_TRACKS: ${{ steps.track_matrix.outputs.selected }}
+        run: echo "value=$(./hack/matrix.sh packages "$SELECTED_TRACKS")" >> "$GITHUB_OUTPUT"
 
   build-packages:
     name: Build Keycloak ${{ matrix.track }} packages (${{ matrix.arch }})
     needs: prepare
+    if: needs.prepare.outputs.has_tracks == 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     strategy:
@@ -93,6 +128,7 @@ jobs:
   publish:
     name: Publish Keycloak ${{ matrix.track }}
     needs: [prepare, build-packages]
+    if: needs.prepare.outputs.has_tracks == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     strategy:

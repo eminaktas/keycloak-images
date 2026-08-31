@@ -6,9 +6,9 @@ operator_image="${2:?usage: test-pair.sh <server-image> <operator-image> <resour
 resources_version="${3:?usage: test-pair.sh <server-image> <operator-image> <resources-version>}"
 cluster="${KIND_CLUSTER_NAME:-keycloak-images-$$}"
 delete_cluster="${KIND_DELETE_CLUSTER:-false}"
-resources="https://raw.githubusercontent.com/keycloak/keycloak-k8s-resources/${resources_version}/kubernetes"
+kustomization="tests/namespace-scoped/kustomization.yaml"
 
-for tool in curl docker kind kubectl; do
+for tool in docker git kind kubectl; do
   command -v "$tool" >/dev/null || {
     echo "$tool is required" >&2
     exit 2
@@ -42,26 +42,13 @@ fi
 kind load docker-image --name "$cluster" "$server_image" "$operator_image"
 
 kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
-for crd in keycloaks.k8s.keycloak.org-v1.yml keycloakrealmimports.k8s.keycloak.org-v1.yml; do
-  kubectl apply -f "${resources}/${crd}"
-done
-for crd in keycloakoidcclients.k8s.keycloak.org-v1.yml keycloaksamlclients.k8s.keycloak.org-v1.yml; do
-  destination="${temporary_directory}/${crd}"
-  if curl --fail --silent --show-error --location --output "$destination" "${resources}/${crd}"; then
-    kubectl apply -f "$destination"
-  else
-    echo "optional CRD is not present in Keycloak resources ${resources_version}: ${crd}"
-  fi
-done
-kubectl apply -f "${resources}/kubernetes.yml"
-
-kubectl -n keycloak set image deployment/keycloak-operator \
-  keycloak-operator="$operator_image"
-kubectl -n keycloak set env deployment/keycloak-operator \
-  RELATED_IMAGE_KEYCLOAK- \
-  KC_OPERATOR_KEYCLOAK_IMAGE_PULL_POLICY=IfNotPresent
+sed \
+  -e "s|?ref=[^[:space:]]*|?ref=${resources_version}|" \
+  -e "s|ghcr.io/eminaktas/keycloak-operator:latest|${operator_image}|" \
+  "$kustomization" > "${temporary_directory}/kustomization.yaml"
+kubectl apply -k "$temporary_directory"
 kubectl -n keycloak patch deployment keycloak-operator --type=strategic \
-  -p '{"spec":{"template":{"spec":{"containers":[{"name":"keycloak-operator","imagePullPolicy":"IfNotPresent"}]}}}}'
+  -p '{"spec":{"template":{"spec":{"containers":[{"name":"keycloak-operator","imagePullPolicy":"IfNotPresent","env":[{"name":"KC_OPERATOR_KEYCLOAK_IMAGE_PULL_POLICY","value":"IfNotPresent"}]}]}}}}'
 kubectl -n keycloak rollout status deployment/keycloak-operator --timeout=5m
 
 kubectl apply -f tests/kind/postgres.yaml

@@ -69,7 +69,7 @@ The official YAML sets `RELATED_IMAGE_KEYCLOAK` explicitly, and a Kubernetes env
 
 ## Build locally
 
-Local builds require `jq`, Melange, APKO, and Docker. Kind, `kubectl`, and `curl` are needed only for the pair test.
+Local builds require `jq`, Melange, APKO, and Docker. Kind and `kubectl` are needed only for the pair test.
 
 ```bash
 make validate

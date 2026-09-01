@@ -6,3 +6,6 @@ packages:
     artifactId: micrometer-core
     version: 1.15.12
     scope: compile
+  - groupId: org.mariadb.jdbc
+    artifactId: mariadb-java-client
+    version: 3.5.10

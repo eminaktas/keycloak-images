@@ -27,7 +27,7 @@ For example, the `bump/26.7/` overrides are copied into `_output/26.7/` beside t
 |--------|----------:|---------------------:|------------:|--------------:|
 | `26.4` | `26.4.15` | `26.4.7`             | 21          | 21            |
 | `26.6` | `26.6.6`  | `26.6.4`             | 21          | 21            |
-| `26.7` | `26.7.2`  | `26.7.2`             | 21          | 21            |
+| `26.7` | `26.7.3`  | `26.7.3`             | 21          | 21            |
 
 ## Tags
 
@@ -35,8 +35,8 @@ Each image receives the same tag set:
 
 | Form                            | Example     |
 |---------------------------------|-------------|
-| version and repository revision | `26.7.2-r0` |
-| upstream version                | `26.7.2`    |
+| version and repository revision | `26.7.3-r0` |
+| upstream version                | `26.7.3`    |
 | active track                    | `26.7`      |
 | default track                   | `latest`    |
 
@@ -60,7 +60,7 @@ Install the track's [official Keycloak Kubernetes resources](https://github.com/
 
 ```bash
 kubectl -n keycloak set image deployment/keycloak-operator \
-  keycloak-operator=ghcr.io/eminaktas/keycloak-operator:26.7.2-r0
+  keycloak-operator=ghcr.io/eminaktas/keycloak-operator:26.7.3-r0
 kubectl -n keycloak set env deployment/keycloak-operator \
   RELATED_IMAGE_KEYCLOAK-
 ```
@@ -85,8 +85,8 @@ assembles the multi-architecture images from both signed package repositories.
 
 ```bash
 make pair-test STREAM=26.7 \
-  SERVER_IMAGE=keycloak-images/keycloak:26.7.2-r0-amd64 \
-  OPERATOR_IMAGE=keycloak-images/keycloak-operator:26.7.2-r0-amd64
+  SERVER_IMAGE=keycloak-images/keycloak:26.7.3-r0-amd64 \
+  OPERATOR_IMAGE=keycloak-images/keycloak-operator:26.7.3-r0-amd64
 ```
 
 ## Verify a release

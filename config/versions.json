@@ -13,7 +13,7 @@
       "active": true,
       "version": "26.4.15",
       "resourcesVersion": "26.4.7",
-      "revision": 0,
+      "revision": 1,
       "upstreamCommit": "6dae553ea5f3f11e67aecc98b9eba1dc0a7ecb46",
       "javaVersion": 21
     },
@@ -29,10 +29,10 @@
     {
       "track": "26.7",
       "active": true,
-      "version": "26.7.2",
-      "resourcesVersion": "26.7.2",
+      "version": "26.7.3",
+      "resourcesVersion": "26.7.3",
       "revision": 0,
-      "upstreamCommit": "289376b142480b4d600aca7acb1e4651862ed2a1",
+      "upstreamCommit": "6d238b6558037085cc25c915893c3d301a80243e",
       "javaVersion": 21
     }
   ]

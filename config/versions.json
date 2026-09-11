@@ -13,7 +13,7 @@
       "active": true,
       "version": "26.4.15",
       "resourcesVersion": "26.4.7",
-      "revision": 1,
+      "revision": 2,
       "upstreamCommit": "6dae553ea5f3f11e67aecc98b9eba1dc0a7ecb46",
       "javaVersion": 21
     },
@@ -22,7 +22,7 @@
       "active": true,
       "version": "26.6.6",
       "resourcesVersion": "26.6.4",
-      "revision": 0,
+      "revision": 1,
       "upstreamCommit": "85af03cdf8585a1f1cf27aa26565a0883bdcdf8d",
       "javaVersion": 21
     },
@@ -31,7 +31,7 @@
       "active": true,
       "version": "26.7.3",
       "resourcesVersion": "26.7.3",
-      "revision": 0,
+      "revision": 1,
       "upstreamCommit": "6d238b6558037085cc25c915893c3d301a80243e",
       "javaVersion": 21
     }

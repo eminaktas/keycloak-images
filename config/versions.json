@@ -29,10 +29,10 @@
     {
       "track": "26.7",
       "active": true,
-      "version": "26.7.4",
-      "resourcesVersion": "26.7.4",
-      "revision": 1,
-      "upstreamCommit": "aa9fe3fba0c6cd5770f19a49378c55f4378cf544",
+      "version": "26.7.5",
+      "resourcesVersion": "26.7.5",
+      "revision": 0,
+      "upstreamCommit": "44299f39868f252ea02236134618c8c5c70a6e9d",
       "javaVersion": 21
     }
   ]

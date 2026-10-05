@@ -52,13 +52,12 @@ pipeline:
 
   - name: Build Keycloak
     runs: |
-      ./mvnw clean install \
+      ./mvnw clean install -B -ntp \
         -DskipTests \
         -DskipTestsuite \
         -DskipExamples \
         -DskipITs \
-        -DskipProtoLock=true \
-        -q
+        -DskipProtoLock=true
 
   - name: Prepare Keycloak distribution
     runs: |
@@ -82,7 +81,7 @@ subpackages:
       - name: Build Operator
         runs: |
           cd operator
-          ../mvnw clean package -q
+          ../mvnw clean package -B -ntp
 
       - name: Prepare Operator distribution
         runs: |

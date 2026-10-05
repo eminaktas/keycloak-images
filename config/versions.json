@@ -13,7 +13,7 @@
       "active": true,
       "version": "26.4.16",
       "resourcesVersion": "26.4.7",
-      "revision": 1,
+      "revision": 2,
       "upstreamCommit": "12c7e24c99327b39ba352c6ade874ac3e536d5e2",
       "javaVersion": 21
     },
@@ -22,17 +22,26 @@
       "active": true,
       "version": "26.6.7",
       "resourcesVersion": "26.6.4",
-      "revision": 1,
+      "revision": 2,
       "upstreamCommit": "3db007abffdcfe01b66e2979de917ef43a9c27c8",
       "javaVersion": 21
     },
     {
       "track": "26.7",
       "active": true,
-      "version": "26.7.4",
-      "resourcesVersion": "26.7.4",
-      "revision": 1,
-      "upstreamCommit": "aa9fe3fba0c6cd5770f19a49378c55f4378cf544",
+      "version": "26.7.5",
+      "resourcesVersion": "26.7.5",
+      "revision": 0,
+      "upstreamCommit": "44299f39868f252ea02236134618c8c5c70a6e9d",
+      "javaVersion": 21
+    },
+    {
+      "track": "26.8",
+      "active": true,
+      "version": "26.8.0",
+      "resourcesVersion": "26.8.0",
+      "revision": 0,
+      "upstreamCommit": "4246609cf2024c85016d3fb1254c3d2533367c31",
       "javaVersion": 21
     }
   ]

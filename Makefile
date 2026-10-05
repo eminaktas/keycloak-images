@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-STREAM ?= 26.7
+STREAM ?= 26.8
 ARCH ?= x86_64
 OUTPUT_DIR := _output/$(STREAM)
 VERSION := $(shell jq -r --arg track "$(STREAM)" '.streams[] | select(.track == $$track) | .version' config/versions.json)
@@ -17,9 +17,9 @@ help:
 	@echo "Keycloak image build targets"
 	@echo ""
 	@echo "  make validate                         Validate and render all active tracks"
-	@echo "  make render STREAM=26.7               Render one track"
-	@echo "  make packages STREAM=26.7 ARCH=x86_64 Build both APKs in one Melange build"
-	@echo "  make images STREAM=26.7 ARCH=x86_64   Build both OCI image tarballs"
+	@echo "  make render STREAM=26.8               Render one track"
+	@echo "  make packages STREAM=26.8 ARCH=x86_64 Build both APKs in one Melange build"
+	@echo "  make images STREAM=26.8 ARCH=x86_64   Build both OCI image tarballs"
 	@echo "  make smoke SERVER_IMAGE=<ref>         Smoke-test a server image"
 	@echo "  make pair-test SERVER_IMAGE=<ref> OPERATOR_IMAGE=<ref>"
 

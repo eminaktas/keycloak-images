@@ -19,7 +19,7 @@ Versioned directories below `bump/` can contain Maven overrides. When a file is 
 | `bump/<track>/deps.yaml`       | Applies Maven dependency overrides with Omnibump     |
 | `bump/<track>/properties.yaml` | Applies Maven property overrides with Omnibump       |
 
-For example, the `bump/26.7/` overrides are copied into `_output/26.7/` beside the rendered recipe for Melange. Signing keys and generated packages are therefore not copied into the build workspace.
+For example, the `bump/26.8/` overrides are copied into `_output/26.8/` beside the rendered recipe for Melange. Signing keys and generated packages are therefore not copied into the build workspace.
 
 ## Active tracks
 
@@ -27,7 +27,8 @@ For example, the `bump/26.7/` overrides are copied into `_output/26.7/` beside t
 |--------|----------:|---------------------:|------------:|--------------:|
 | `26.4` | `26.4.16` | `26.4.7`             | 21          | 21            |
 | `26.6` | `26.6.7`  | `26.6.4`             | 21          | 21            |
-| `26.7` | `26.7.4`  | `26.7.4`             | 21          | 21            |
+| `26.7` | `26.7.5`  | `26.7.5`             | 21          | 21            |
+| `26.8` | `26.8.0`  | `26.8.0`             | 21          | 21            |
 
 ## Tags
 
@@ -35,9 +36,9 @@ Each image receives the same tag set:
 
 | Form                            | Example     |
 |---------------------------------|-------------|
-| version and repository revision | `26.7.3-r0` |
-| upstream version                | `26.7.3`    |
-| active track                    | `26.7`      |
+| version and repository revision | `26.8.0-r0` |
+| upstream version                | `26.8.0`    |
+| active track                    | `26.8`      |
 | default track                   | `latest`    |
 
 Only the track selected by `latestTrack` receives `latest`. During release, the operator is rendered again with the published server digest in `RELATED_IMAGE_KEYCLOAK`, keeping the pair linked even when floating tags move later.
@@ -73,7 +74,7 @@ Local builds require `jq`, Melange, APKO, and Docker. Kind and `kubectl` are nee
 
 ```bash
 make validate
-make images STREAM=26.7 ARCH=x86_64
+make images STREAM=26.8 ARCH=x86_64
 ```
 
 Generated definitions, copied track overrides, and artifacts are written below `_output/<track>`.
@@ -84,9 +85,9 @@ of compiling the Keycloak Maven reactor on an x86 runner. The publish job then
 assembles the multi-architecture images from both signed package repositories.
 
 ```bash
-make pair-test STREAM=26.7 \
-  SERVER_IMAGE=keycloak-images/keycloak:26.7.3-r0-amd64 \
-  OPERATOR_IMAGE=keycloak-images/keycloak-operator:26.7.3-r0-amd64
+make pair-test STREAM=26.8 \
+  SERVER_IMAGE=keycloak-images/keycloak:26.8.0-r0-amd64 \
+  OPERATOR_IMAGE=keycloak-images/keycloak-operator:26.8.0-r0-amd64
 ```
 
 ## Verify a release

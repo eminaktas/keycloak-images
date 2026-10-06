@@ -29,6 +29,8 @@ environment:
       - busybox
       - ca-certificates-bundle
       - gcc-13-default
+      # kiota (.NET) needs libssl.so.3; Wolfi default is OpenSSL 4.0
+      - libssl3
       - openjdk-${{vars.java-version}}-default-jdk
       - maven
       - nodejs-24

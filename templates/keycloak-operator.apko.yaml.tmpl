@@ -22,6 +22,7 @@ environment:
   JAVA_HOME: /usr/lib/jvm/java-<<.JavaVersion>>-openjdk
   PATH: /usr/lib/jvm/java-<<.JavaVersion>>-openjdk/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   RELATED_IMAGE_KEYCLOAK: <<.ServerReference>>
+  kc.operator.keycloak.image: "${RELATED_IMAGE_KEYCLOAK:<<.ServerReference>>}"
 
 paths:
   - path: /opt/keycloak

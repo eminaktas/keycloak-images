@@ -55,7 +55,7 @@ kind load docker-image --name "$cluster" "$server_image" "$operator_image"
 kubectl create namespace keycloak --dry-run=client -o yaml | kubectl apply -f -
 kubectl apply -k "$resources_directory"
 kubectl -n keycloak set image deployment/keycloak-operator keycloak-operator="$operator_image"
-kubectl -n keycloak set env deployment/keycloak-operator RELATED_IMAGE_KEYCLOAK-
+kubectl -n keycloak set env deployment/keycloak-operator RELATED_IMAGE_KEYCLOAK- kc.operator.keycloak.image-
 kubectl -n keycloak patch deployment keycloak-operator --type=strategic \
   -p '{"spec":{"template":{"spec":{"containers":[{"name":"keycloak-operator","imagePullPolicy":"IfNotPresent","env":[{"name":"KC_OPERATOR_KEYCLOAK_IMAGE_PULL_POLICY","value":"IfNotPresent"}]}]}}}}'
 kubectl -n keycloak rollout status deployment/keycloak-operator --timeout=5m

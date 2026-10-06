@@ -63,10 +63,10 @@ Install the track's [official Keycloak Kubernetes resources](https://github.com/
 kubectl -n keycloak set image deployment/keycloak-operator \
   keycloak-operator=ghcr.io/eminaktas/keycloak-operator:26.7.3-r0
 kubectl -n keycloak set env deployment/keycloak-operator \
-  RELATED_IMAGE_KEYCLOAK-
+  RELATED_IMAGE_KEYCLOAK- kc.operator.keycloak.image-
 ```
 
-The official YAML sets `RELATED_IMAGE_KEYCLOAK` explicitly, and a Kubernetes environment value overrides the default embedded in the container image. Removing it makes the operator use the server digest bound into this operator image at release time. Alternatively, set it explicitly to the desired `ghcr.io/eminaktas/keycloak` reference.
+The official YAML sets `RELATED_IMAGE_KEYCLOAK` explicitly (and, from 26.8, `kc.operator.keycloak.image`, which takes precedence), and a Kubernetes environment value overrides the default embedded in the container image. Removing it makes the operator use the server digest bound into this operator image at release time. Alternatively, set it explicitly to the desired `ghcr.io/eminaktas/keycloak` reference.
 
 ## Build locally
 

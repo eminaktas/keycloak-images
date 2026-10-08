@@ -2,7 +2,7 @@
   "schema": 1,
   "registry": "ghcr.io/eminaktas",
   "sourceRepository": "https://github.com/eminaktas/keycloak-images",
-  "latestTrack": "26.7",
+  "latestTrack": "26.8",
   "architectures": [
     "x86_64",
     "aarch64"

@@ -38,10 +38,10 @@
     {
       "track": "26.8",
       "active": true,
-      "version": "26.8.0",
-      "resourcesVersion": "26.8.0",
+      "version": "26.8.1",
+      "resourcesVersion": "26.8.1",
       "revision": 0,
-      "upstreamCommit": "4246609cf2024c85016d3fb1254c3d2533367c31",
+      "upstreamCommit": "24ed1dadf3f246a555adb6d3d4a99e9b3003fb3b",
       "javaVersion": 21
     }
   ]

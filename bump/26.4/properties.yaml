@@ -1,3 +1,0 @@
-properties:
-  - property: mariadb-jdbc.version
-    value: 3.5.10

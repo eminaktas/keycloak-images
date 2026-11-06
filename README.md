@@ -25,10 +25,9 @@ For example, the `bump/26.8/` overrides are copied into `_output/26.8/` beside t
 
 | Track  | Keycloak  | Kubernetes resources | Server Java | Operator Java |
 |--------|----------:|---------------------:|------------:|--------------:|
-| `26.4` | `26.4.16` | `26.4.7`             | 21          | 21            |
-| `26.6` | `26.6.7`  | `26.6.4`             | 21          | 21            |
-| `26.7` | `26.7.5`  | `26.7.5`             | 21          | 21            |
-| `26.8` | `26.8.1`  | `26.8.1`             | 21          | 21            |
+| `26.4` | `26.4.18` | `26.4.7`             | 21          | 21            |
+| `26.6` | `26.6.9`  | `26.6.4`             | 21          | 21            |
+| `26.8` | `26.8.2`  | `26.8.1`             | 21          | 21            |
 
 ## Tags
 
@@ -61,7 +60,7 @@ Install the track's [official Keycloak Kubernetes resources](https://github.com/
 
 ```bash
 kubectl -n keycloak set image deployment/keycloak-operator \
-  keycloak-operator=ghcr.io/eminaktas/keycloak-operator:26.7.3-r0
+  keycloak-operator=ghcr.io/eminaktas/keycloak-operator:26.8.0-r0
 kubectl -n keycloak set env deployment/keycloak-operator \
   RELATED_IMAGE_KEYCLOAK- kc.operator.keycloak.image-
 ```

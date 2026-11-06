@@ -1,0 +1,11 @@
+packages:
+  - groupId: org.mariadb.jdbc
+    artifactId: mariadb-java-client
+    version: 3.5.11
+  - groupId: com.google.guava
+    artifactId: guava
+    version: 33.7.2-jre
+  - groupId: io.micrometer
+    artifactId: micrometer-core
+    version: 1.15.12
+    scope: compile
